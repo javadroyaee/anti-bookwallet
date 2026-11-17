@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#120822"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="آنتی‌ویروس بوک‌ولت"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/tvStatusBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="#3B1E6D"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="6dp"
+        android:text="وضعیت: غیرفعال"
+        android:textColor="#FF6B6B"
+        android:textSize="14sp"
+        android:layout_marginBottom="20dp" />
+
+    <LinearLayout
+        android:id="@+id/layoutActivation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1E1035"
+        android:orientation="vertical"
+        android:padding="18dp"
+        android:visibility="visible">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="فعال‌سازی نسخه کامل"
+            android:textColor="#E0B0FF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <EditText
+            android:id="@+id/etFullName"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="#2A174A"
+            android:hint="نام و نام خانوادگی"
+            android:inputType="textPersonName"
+            android:paddingHorizontal="14dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#9E82CC"
+            android:layout_marginBottom="12dp" />
+
+        <EditText
+            android:id="@+id/etPhone"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="#2A174A"
+            android:hint="شماره موبایل (مثلاً 09120000000)"
+            android:inputType="phone"
+            android:paddingHorizontal="14dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#9E82CC"
+            android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/btnPayActivate"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:backgroundTint="#7C3AED"
+            android:text="خرید اشتراک و فعال‌سازی آنلاین"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnCheckStatus"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="10dp"
+            android:backgroundTint="#3B1E6D"
+            android:text="بررسی مجدد وضعیت پرداخت"
+            android:textColor="#E0B0FF"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutScanner"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#1E1035"
+        android:orientation="vertical"
+        android:padding="18dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvWelcomeUser"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="خوش آمدید"
+            android:textColor="#A7F3D0"
+            android:textSize="16sp"
+            android:layout_marginBottom="14dp" />
+
+        <Button
+            android:id="@+id/btnStartScan"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:backgroundTint="#10B981"
+            android:text="شروع اسکن کامل امنیت و بدافزار"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <ProgressBar
+            android:id="@+id/progressScan"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:max="100"
+            android:progress="0"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvScanStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="آماده برای اسکن برنامه‌ها و فایل‌های سیستم"
+            android:textColor="#D8B4FE"
+            android:textSize="14sp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="12dp"
+            android:background="#120822"
+            android:padding="10dp">
+
+            <TextView
+                android:id="@+id/tvScanLogs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="گزارش اسکن اینجا نمایش داده می‌شود..."
+                android:textColor="#CBD5E1"
+                android:textSize="13sp" />
+        </ScrollView>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:text="طراحی و توسعه: JRweb.ir | 09121571088"
+        android:textColor="#8B5CF6"
+        android:textSize="12sp" />
+</LinearLayout>
