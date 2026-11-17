@@ -211,7 +211,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void runAntivirusScan() {
         btnStartScan.setEnabled(false);
-        progressScan.setVisibility(View.Visible);
+        progressScan.setVisibility(View.VISIBLE);
         progressScan.setProgress(0);
         tvScanLogs.setText("شروع بررسی برنامه‌های نصب شده...\n");
 
@@ -255,7 +255,7 @@ public class MainActivity extends AppCompatActivity {
                 if (isSuspicious) threats++;
 
                 final String logEntry = isSuspicious
-                        ? "[هشدار امنیتی] " + appLabel + " (" + pkgName) - دسترسی‌های حساس بالا\n"
+                        ? "[هشدار امنیتی] " + appLabel + " (" + pkgName + ") - دسترسی‌های حساس بالا\n"
                         : "[امن] " + appLabel + "\n";
 
                 mainHandler.post(() -> {
