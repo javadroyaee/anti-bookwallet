@@ -16,11 +16,8 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
-
 import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -33,9 +30,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
-
     private static final String SITE_URL = "https://jrweb.ir";
-    private static final String PRODUCT_ID = "365";
+    private static final String PAY_API = SITE_URL + "/wp-json/bookwallet/v1/pay";
     private static final String VERIFY_API = SITE_URL + "/wp-json/bookwallet/v1/verify";
     private static final String PREFS_NAME = "BookWalletPrefs";
 
@@ -44,16 +40,15 @@ public class MainActivity extends AppCompatActivity {
     private EditText etFullName, etPhone;
     private Button btnPayActivate, btnCheckStatus, btnStartScan;
     private ProgressBar progressScan;
-
     private SharedPreferences prefs;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean waitingForPaymentReturn = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
         layoutActivation = findViewById(R.id.layoutActivation);
@@ -72,28 +67,36 @@ public class MainActivity extends AppCompatActivity {
         etFullName.setText(prefs.getString("user_name", ""));
         etPhone.setText(prefs.getString("user_phone", ""));
 
-        btnPayActivate.setOnClickListener(v -> startCheckoutFlow());
+        btnPayActivate.setOnClickListener(v -> startDirectGatewayFlow());
         btnCheckStatus.setOnClickListener(v -> {
             String phone = etPhone.getText().toString().trim();
-            if (phone.isEmpty()) {
-                Toast.makeText(this, "لطفاً شماره موبایل را وارد کنید", Toast.LENGTH_SHORT).show();
+            if (phone.length() < 10) {
+                Toast.makeText(this, "شماره موبایل نامعتبر است", Toast.LENGTH_SHORT).show();
                 return;
             }
-            prefs.edit()
-                    .putString("user_phone", phone)
-                    .putString("user_name", etFullName.getText().toString().trim())
-                    .apply();
-            verifyPurchaseWithServer(phone);
+            prefs.edit().putString("user_phone", phone).putString("user_name", etFullName.getText().toString().trim()).apply();
+            verifyPurchaseWithServer(phone, true);
         });
 
         btnStartScan.setOnClickListener(v -> runAntivirusScan());
-
         updateUIState();
         handleDeepLink(getIntent());
 
         String savedPhone = prefs.getString("user_phone", "");
-        if (!savedPhone.isEmpty()) {
-            verifyPurchaseWithServer(savedPhone);
+        if (!savedPhone.isEmpty() && !prefs.getBoolean("is_activated", false)) {
+            verifyPurchaseWithServer(savedPhone, false);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (waitingForPaymentReturn && !prefs.getBoolean("is_activated", false)) {
+            waitingForPaymentReturn = false;
+            String savedPhone = prefs.getString("user_phone", "");
+            if (!savedPhone.isEmpty()) {
+                verifyPurchaseWithServer(savedPhone, true);
+            }
         }
     }
 
@@ -108,47 +111,49 @@ public class MainActivity extends AppCompatActivity {
         if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction())) {
             Uri data = intent.getData();
             if (data != null && "bookwallet".equals(data.getScheme()) && "activate".equals(data.getHost())) {
+                waitingForPaymentReturn = false;
+                String statusParam = data.getQueryParameter("status");
                 String phoneParam = data.getQueryParameter("phone");
-                String phoneToVerify = (phoneParam != null && !phoneParam.isEmpty())
-                        ? phoneParam
-                        : prefs.getString("user_phone", "");
+                String phoneToVerify = (phoneParam != null && !phoneParam.isEmpty()) ? phoneParam : prefs.getString("user_phone", "");
+
+                if ("failed".equalsIgnoreCase(statusParam)) {
+                    Toast.makeText(this, "پرداخت ناموفق بود یا لغو شد.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+
                 if (!phoneToVerify.isEmpty()) {
                     prefs.edit().putString("user_phone", phoneToVerify).apply();
                     etPhone.setText(phoneToVerify);
-                    verifyPurchaseWithServer(phoneToVerify);
+                    verifyPurchaseWithServer(phoneToVerify, true);
                 }
             }
         }
     }
 
-    private void startCheckoutFlow() {
+    private void startDirectGatewayFlow() {
         String name = etFullName.getText().toString().trim();
         String phone = etPhone.getText().toString().trim();
 
         if (name.isEmpty() || phone.length() < 10) {
-            Toast.makeText(this, "لطفاً نام و شماره موبایل معتبر وارد کنید", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "وارد کردن نام و شماره موبایل الزامی است", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        prefs.edit()
-                .putString("user_name", name)
-                .putString("user_phone", phone)
-                .apply();
+        prefs.edit().putString("user_name", name).putString("user_phone", phone).apply();
 
         try {
-            String checkoutUrl = SITE_URL + "/cart/?add-to-cart=" + PRODUCT_ID
-                    + "&quantity=1"
-                    + "&billing_first_name=" + URLEncoder.encode(name, "UTF-8")
-                    + "&billing_phone=" + URLEncoder.encode(phone, "UTF-8");
-            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(checkoutUrl));
+            String directPayUrl = PAY_API + "?name=" + URLEncoder.encode(name, "UTF-8") + "&phone=" + URLEncoder.encode(phone, "UTF-8");
+            waitingForPaymentReturn = true;
+            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(directPayUrl));
             startActivity(browserIntent);
         } catch (Exception e) {
-            Toast.makeText(this, "خطا در باز کردن صفحه پرداخت", Toast.LENGTH_SHORT).show();
+            waitingForPaymentReturn = false;
+            Toast.makeText(this, "خطا در اتصال به درگاه", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void verifyPurchaseWithServer(String phone) {
-        Toast.makeText(this, "در حال استعلام وضعیت فعال‌سازی...", Toast.LENGTH_SHORT).show();
+    private void verifyPurchaseWithServer(String phone, boolean showFeedback) {
+        if (showFeedback) Toast.makeText(this, "در حال بررسی وضعیت...", Toast.LENGTH_SHORT).show();
         executor.execute(() -> {
             boolean isActivated = false;
             try {
@@ -171,25 +176,22 @@ public class MainActivity extends AppCompatActivity {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                     StringBuilder sb = new StringBuilder();
                     String line;
-                    while ((line = reader.readLine()) != null) {
-                        sb.append(line);
-                    }
+                    while ((line = reader.readLine()) != null) sb.append(line);
                     reader.close();
                     JSONObject response = new JSONObject(sb.toString());
                     isActivated = response.optBoolean("activated", false);
                 }
                 conn.disconnect();
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
 
             final boolean finalStatus = isActivated;
             mainHandler.post(() -> {
                 prefs.edit().putBoolean("is_activated", finalStatus).apply();
                 updateUIState();
                 if (finalStatus) {
-                    Toast.makeText(MainActivity.this, "آنتی‌ویروس بوک‌ولت با موفقیت فعال شد!", Toast.LENGTH_LONG).show();
-                } else {
-                    Toast.makeText(MainActivity.this, "پرداخت تایید نشد. لطفاً ابتدا خرید را تکمیل کنید.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "آنتی‌ویروس با موفقیت فعال شد!", Toast.LENGTH_LONG).show();
+                } else if (showFeedback) {
+                    Toast.makeText(this, "پرداخت تایید نشد.", Toast.LENGTH_SHORT).show();
                 }
             });
         });
@@ -197,16 +199,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateUIState() {
         boolean isActivated = prefs.getBoolean("is_activated", false);
-        String name = prefs.getString("user_name", "کاربر گرامی");
+        String name = prefs.getString("user_name", "");
 
         if (isActivated) {
-            tvStatusBadge.setText("وضعیت: فعال (نسخه اصلی)");
+            tvStatusBadge.setText("وضعیت: فعال");
             tvStatusBadge.setTextColor(Color.parseColor("#34D399"));
             layoutActivation.setVisibility(View.GONE);
             layoutScanner.setVisibility(View.VISIBLE);
-            tvWelcomeUser.setText("کاربر: " + name + " | محافظت فعال است");
+            tvWelcomeUser.setText("کاربر: " + name);
         } else {
-            tvStatusBadge.setText("وضعیت: غیرفعال (نیاز به خرید)");
+            tvStatusBadge.setText("وضعیت: غیرفعال");
             tvStatusBadge.setTextColor(Color.parseColor("#FF6B6B"));
             layoutActivation.setVisibility(View.VISIBLE);
             layoutScanner.setVisibility(View.GONE);
@@ -217,16 +219,14 @@ public class MainActivity extends AppCompatActivity {
         btnStartScan.setEnabled(false);
         progressScan.setVisibility(View.VISIBLE);
         progressScan.setProgress(0);
-        tvScanLogs.setText("شروع بررسی برنامه‌های نصب شده...\n");
+        tvScanLogs.setText("شروع اسکن... \n");
 
         executor.execute(() -> {
             PackageManager pm = getPackageManager();
             List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
             List<String> riskyPermissions = Arrays.asList(
-                    "android.permission.READ_SMS",
-                    "android.permission.RECEIVE_SMS",
-                    "android.permission.RECORD_AUDIO",
-                    "android.permission.SYSTEM_ALERT_WINDOW"
+                    "android.permission.READ_SMS", "android.permission.RECEIVE_SMS",
+                    "android.permission.RECORD_AUDIO", "android.permission.SYSTEM_ALERT_WINDOW"
             );
 
             int total = apps.size();
@@ -234,9 +234,7 @@ public class MainActivity extends AppCompatActivity {
 
             for (int i = 0; i < total; i++) {
                 ApplicationInfo appInfo = apps.get(i);
-                if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
-                    continue;
-                }
+                if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
 
                 String appLabel = pm.getApplicationLabel(appInfo).toString();
                 String pkgName = appInfo.packageName;
@@ -246,40 +244,32 @@ public class MainActivity extends AppCompatActivity {
                     String[] requestedPerms = pm.getPackageInfo(pkgName, PackageManager.GET_PERMISSIONS).requestedPermissions;
                     if (requestedPerms != null) {
                         for (String perm : requestedPerms) {
-                            if (riskyPermissions.contains(perm)) {
-                                riskScore++;
-                            }
+                            if (riskyPermissions.contains(perm)) riskScore++;
                         }
                     }
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
 
                 final int currentProgress = (int) (((i + 1) / (float) total) * 100);
                 final boolean isSuspicious = riskScore >= 3 && !pkgName.equals(getPackageName());
                 if (isSuspicious) threats++;
 
-                final String logEntry = isSuspicious
-                        ? "[هشدار امنیتی] " + appLabel + " (" + pkgName + ") - دسترسی‌های حساس بالا\n"
-                        : "[امن] " + appLabel + "\n";
+                final String logEntry = isSuspicious ? "[هشدار] " + appLabel + "\n" : "[ایمن] " + appLabel + "\n";
 
                 mainHandler.post(() -> {
                     progressScan.setProgress(currentProgress);
-                    tvScanStatus.setText("در حال اسکن: " + appLabel);
+                    tvScanStatus.setText("در حال بررسی: " + appLabel);
                     tvScanLogs.append(logEntry);
                 });
 
-                try {
-                    Thread.sleep(30);
-                } catch (InterruptedException ignored) {
-                }
+                try { Thread.sleep(20); } catch (InterruptedException ignored) {}
             }
 
             final int finalThreats = threats;
             mainHandler.post(() -> {
                 btnStartScan.setEnabled(true);
                 progressScan.setProgress(100);
-                tvScanStatus.setText("اسکن کامل شد. موارد مشکوک یافت شده: " + finalThreats);
-                tvScanLogs.append("\n--- پایان اسکن امنیتی بوک‌ولت ---\n");
+                tvScanStatus.setText("اسکن کامل شد. موارد مشکوک: " + finalThreats);
+                tvScanLogs.append("\n--- پایان اسکن ---\n");
             });
         });
     }
