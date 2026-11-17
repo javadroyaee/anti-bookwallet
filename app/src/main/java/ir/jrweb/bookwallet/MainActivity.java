@@ -79,7 +79,10 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "لطفاً شماره موبایل را وارد کنید", Toast.LENGTH_SHORT).show();
                 return;
             }
-            prefs.edit().putString("user_phone", phone).putString("user_name", etFullName.getText().toString().trim()).apply();
+            prefs.edit()
+                    .putString("user_phone", phone)
+                    .putString("user_name", etFullName.getText().toString().trim())
+                    .apply();
             verifyPurchaseWithServer(phone);
         });
 
@@ -133,7 +136,8 @@ public class MainActivity extends AppCompatActivity {
                 .apply();
 
         try {
-            String checkoutUrl = SITE_URL + "/checkout/?add-to-cart=" + PRODUCT_ID
+            String checkoutUrl = SITE_URL + "/cart/?add-to-cart=" + PRODUCT_ID
+                    + "&quantity=1"
                     + "&billing_first_name=" + URLEncoder.encode(name, "UTF-8")
                     + "&billing_phone=" + URLEncoder.encode(phone, "UTF-8");
             Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(checkoutUrl));
